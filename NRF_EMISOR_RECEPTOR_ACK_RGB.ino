@@ -19,7 +19,7 @@ const int pinCSN = 10;
 RF24 radio(pinCE, pinCSN);
 String mensaje_recibido;
 const int LDR = A0;
-int val_LDR = 1000;
+int val_LDR = /*MAX LDR VALUE*/;
 StaticJsonDocument <200> doc;
 bool emer;
 char data[128];
@@ -54,166 +54,131 @@ void setup(void)
   pixels.begin();
 }
  
-void loop(void)
-{
-  val_LDR = analogRead(LDR);
-  pixels.clear();
-  if (radio.available())
-  {
+void loop(void){
+val_LDR = analogRead(LDR);
+pixels.clear();
+if (radio.available()){
     receive_msg();
     num_msg++;
-
-  }
-  
-  if(val_LDR < 100){
-         if(digitalRead(radar) == HIGH){
-          while(digitalRead(radar) == HIGH){
-            enviar = enviar +1;
-            if(enviar == 1){
-              for(int i=0; i<NUMPIXELS; i++) {
-                //Serial.println("Subo intensidad");
-                pixels.setPixelColor(i, pixels.Color(255, 255, 255));
-                pixels.setBrightness(80);
-                pixels.show();
-              }
-              send_message();
-              }
+}
+if(val_LDR < 100){
+    if(digitalRead(radar) == HIGH){
+        time1 = millis();(*@\label{tiempo1}@*)
+        while(digitalRead(radar) == HIGH){
+        enviar = enviar +1;
+        if(enviar == 1){
+            for(int i=0; i<NUMPIXELS; i++) {
+              pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+              pixels.setBrightness(80); 
+              pixels.show();
             }
-         }
-        for(int i=0; i<NUMPIXELS; i++) {
-            pixels.setPixelColor(i, pixels.Color(255, 255, 255));
-            pixels.setBrightness(20);
-            pixels.show();
         }
-       
-    }else{
-            for (int i = NUMPIXELS; i> 0; i--){
-            pixels.setBrightness(0);
-            pixels.show();
-            enviar = 0;
-          }
     }
-    
+    time2 = millis();(*@\label{tiempo2}@*)
+    vel = 5/((time2 - time1)/1000);
+    send_message(); 
+    }
+    for(int i=0; i<NUMPIXELS; i++) { (*@\label{bucle2}@*)
+        pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+        pixels.setBrightness(20);
+        pixels.show();
+    }
+}else{
+    for (int i = NUMPIXELS; i> 0; i--){
+        pixels.setBrightness(0);
+        pixels.show();
+        enviar = 0;
+    }
+  }
 }
 
 void receive_msg(){
-  String keyJson;
-  String valueJson;
-    mensaje_recibido = "";
-    radio.read(data, 128);
-    for (byte i = 0; i < sizeof(data); i++){
-        //Serial.print(data[i]);
-        mensaje_recibido = mensaje_recibido + String(data[i]);
-      }
-    //radio.stopListening();
-     radio.writeAckPayload(1, &sndAckBuf, sizeof(sndAckBuf)); 
-     radio.writeAckPayload(0, &sndAckBuf, sizeof(sndAckBuf));
-     radio.writeAckPayload(2, &sndAckBuf, sizeof(sndAckBuf));
+String keyJson;
+String valueJson;
+mensaje_recibido = "";
+radio.read(data, 128);
+for (byte i = 0; i < sizeof(data); i++){
+ mensaje_recibido = mensaje_recibido + String(data[i]);
+}
+radio.writeAckPayload(1, &sndAckBuf, sizeof(sndAckBuf)); 
+radio.writeAckPayload(0, &sndAckBuf, sizeof(sndAckBuf));
+radio.writeAckPayload(2, &sndAckBuf, sizeof(sndAckBuf));
     
-    deserializeJson(doc, mensaje_recibido);
-    JsonObject obj = doc.as<JsonObject>();
-    for (JsonPair mensaje_recibido : obj)
-    {
+deserializeJson(doc, mensaje_recibido);
+JsonObject obj = doc.as<JsonObject>();
+for (JsonPair mensaje_recibido : obj){
     keyJson = mensaje_recibido.key().c_str();
     valueJson = mensaje_recibido.value().as < char * > ();
-    if (keyJson == "Emergency"){
+    if (keyJson == /*KEY*/){
       emer = true;
     }
-    while(keyJson == "Emergency" and emer == true){
-        if(valueJson == String(myId)){
-         for(int i=0; i<NUMPIXELS; i++) { // For each pixel...
-
-          pixels.setPixelColor(i, pixels.Color(0, 0, 255));
-          pixels.setBrightness(100);
-          pixels.show();
-          }
-        }
-        if(valueJson == String(myId - 1)){
-          for(int i=0; i<NUMPIXELS; i++) { 
-            pixels.setPixelColor(i, pixels.Color(255, 0, 0));
-            pixels.setBrightness(100);
-            pixels.show();}
-        }
-        if(valueJson == String(myId+1)){
-          for(int i=0; i<NUMPIXELS; i++) { // For each pixel...
-            pixels.setPixelColor(i, pixels.Color(255, 0, 0));
-            pixels.setBrightness(100);
-            pixels.show();
+    while(keyJson == /*KEY*/ and emer == true){
+        if(valueJson == /*Value*/){ 
+            for(int i=0; i<NUMPIXELS; i++) { 
+              pixels.setPixelColor(i, pixels.Color(0, 0, 255));
+              pixels.setBrightness(100);
+              pixels.show();
             }
         }
-          receive_msg();  
-    //}
-    //if(keyJson == "FIN"){
-      if(valueJson == "FIN"){
-        emer = false;
-          Serial.println(valueJson);
+        if(valueJson == /*Value*/){ 
             for(int i=0; i<NUMPIXELS; i++) {
-            pixels.setPixelColor(i, pixels.Color(255, 255, 255));
-            pixels.setBrightness(20);
-            pixels.show();
-            return;
-          }
+              pixels.setPixelColor(i, pixels.Color(255, 0, 0));
+              pixels.setBrightness(100);
+              pixels.show();
+            }
         }
-      }
-  }
-}
-void send_message(){
-  /*
-  String mensaje_enviar;
-  char m_send [128] = "";
-  int longitud_enviar = 0;
-  doc.clear();
-   radio.stopListening();
-    //Serial.println(F("Enviando mensaje-----"));
-    doc["Enciende"] = String(myId);
-    serializeJson(doc, mensaje_enviar);
-    doc.clear();
-    longitud_enviar = mensaje_enviar.length()+1;
-    mensaje_enviar.toCharArray(m_send, longitud_enviar);
-    mensaje_enviar = "";
-    Serial.println(F("se ha serializado"));
-      //seleccionamos el canal 0
-        radio.openWritingPipe(pipe[0]);
-        if(radio.write(m_send, sizeof (m_send))){
-        Serial.println(m_send);
-         /* while (radio.isAckPayloadAvailable()) {
-           int32_t msgSize = radio.getDynamicPayloadSize();  //ack payload length is dynamic
-            byte msgIn[msgSize];
-            Serial.print(F("ACK: "));
-            Serial.println(radio.read(&msgIn, msgSize));
-      }
-      Serial.println(F("FIN"));
-      radio.startListening();
-        }*/
-           radio.stopListening();
-  //radio.write(data, 16);
-  //Serial.println("he entrado");
-  doc["Enciende"]= "3";
-  serializeJson(doc, msg);
-  Serial.println(msg);
-  doc.clear();
-  longitud = msg.length()+1;
-  //Serial.print ("La longitud es :");
-  //Serial.println(longitud);
-  //convertidos el string en cadena para poder enviar
-  msg.toCharArray(m_send, longitud);
-  msg = "";
-  radio.openWritingPipe(pipe[0]);
-      Serial.println(m_send);
-      if(radio.write(m_send, sizeof (m_send))){
-        Serial.println("el m_send es: ");
-        Serial.print(m_send);
-          while (radio.isAckPayloadAvailable()) {
-            Serial.println("aqui entro??");
-            int32_t msgSize = radio.getDynamicPayloadSize();  //ack payload length is dynamic
-            byte msgIn[msgSize];
-            Serial.print("ACK: ");
-            
-            Serial.println(radio.read(&msgIn, msgSize));
-          }
-      }
-      Serial.println("FIN");
-      radio.startListening();
+        receive_msg();  
+        if(valueJson == /*Value*/){
+            emer = false;
+            for(int i=0; i<NUMPIXELS; i++) {
+                pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+                pixels.setBrightness(20);
+                pixels.show();
+                return;
+            }
+        }
     }
+    if(keyJson == /*Key*/){ 
+        if(valueJson == /*Value*/){
+            for(int i=0; i<NUMPIXELS; i++) {
+                pixels.setPixelColor(i, pixels.Color(255, 255, 255));
+                pixels.setBrightness(80);
+                pixels.show();
+            }
+        }
+    }
+}
+void send_message() {
+if (vel < 50){(*@\label{ifvel}@*)
+doc["Enciende"]= String(myId+1);
+serializeJson(doc, msg);
+doc.clear();
+longitud = msg.length()+1;
+msg.toCharArray(m_send, longitud);
+msg = "";
+radio.openWritingPipe(pipe[0]);
+ if(radio.write(m_send, sizeof (m_send))){
+  while (radio.isAckPayloadAvailable()) {
+   int32_t msgSize = radio.getDynamicPayloadSize(); 
+   byte msgIn[msgSize];     
+   }
+  }
+radio.startListening();    
+}else{
+doc[/*KEY*/]= String(myId+1);
+doc[/*KEY*/]= String(myId+1);
+serializeJson(doc, msg);
+doc.clear();
+longitud = msg.length()+1;
+msg.toCharArray(m_send, longitud);
+msg = "";
+radio.openWritingPipe(pipe[/*value pipe*/]);
+ if(radio.write(m_send, sizeof (m_send))){
+  while (radio.isAckPayloadAvailable()) {
+   int32_t msgSize = radio.getDynamicPayloadSize(); 
+   byte msgIn[msgSize];      
+   }
+ }
+}
  
        
